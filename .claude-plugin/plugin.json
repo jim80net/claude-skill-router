@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Semantic skill/memory router — injects relevant skills per-turn using embedding similarity",
   "author": {
-    "name": "Jim Lim",
+    "name": "Jim Park",
     "url": "https://github.com/jim80net"
   },
   "repository": "https://github.com/jim80net/claude-skill-router",
