@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            bun-target: bun-linux-x64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+            bun-target: bun-linux-arm64
+          - os: macos-13
+            platform: darwin-x64
+            bun-target: bun-darwin-x64
+          - os: macos-latest
+            platform: darwin-arm64
+            bun-target: bun-darwin-arm64
+          - os: windows-latest
+            platform: win32-x64
+            bun-target: bun-windows-x64
+          # win32-arm64: no GitHub Actions runner available yet
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build binary
+        run: bun run build.ts --target ${{ matrix.bun-target }}
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: tar -czf skill-router-${{ matrix.platform }}.tar.gz -C dist/${{ matrix.platform }} .
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist/${{ matrix.platform }}/* -DestinationPath skill-router-${{ matrix.platform }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-router-${{ matrix.platform }}
+          path: skill-router-${{ matrix.platform }}.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            skill-router-*.tar.gz
+            skill-router-*.zip
+          generate_release_notes: true
