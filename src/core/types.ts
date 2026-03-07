@@ -113,7 +113,6 @@ export type StopHookConfig = {
 export type SyncConfig = {
   enabled: boolean;
   repo: string;
-  interactive: boolean;
   autoPull: boolean;
   autoCommitPush: boolean;
   projectMappings: Record<string, string>; // local path → canonical project id

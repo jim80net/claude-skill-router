@@ -11,7 +11,6 @@ export const DEFAULT_CONFIG: SkillRouterConfig = {
   sync: {
     enabled: false,
     repo: "",
-    interactive: false,
     autoPull: true,
     autoCommitPush: true,
     projectMappings: {},

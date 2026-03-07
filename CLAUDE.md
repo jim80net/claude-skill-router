@@ -45,7 +45,7 @@ When `sync.enabled` is true in `~/.claude/skill-router.json`, the router syncs r
 - **SessionStart**: `git pull --rebase` from remote, auto-resolve markdown conflicts
 - **Stop**: copy local changes to sync repo, `git commit && push`
 - **Project identity**: git remote URL → `host/owner/repo`; non-git projects → `_local/<encoded-path>`
-- **Config**: `sync.repo` (git URL), `sync.interactive` (flag for user-interactive conflict resolution), `sync.projectMappings` (manual overrides)
+- **Config**: `sync.repo` (git URL), `sync.projectMappings` (manual overrides)
 
 ### Rule frontmatter extensions
 

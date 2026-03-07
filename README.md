@@ -130,7 +130,6 @@ Create `~/.claude/skill-router.json` to customize behavior:
   "sync": {
     "enabled": false,
     "repo": "git@github.com:you/claude-corpus.git",
-    "interactive": false,
     "autoPull": true,
     "autoCommitPush": true,
     "projectMappings": {}
@@ -179,7 +178,7 @@ The router can sync your growing corpus of rules, skills, and memories across wo
 
 - **Session start**: pulls latest changes from the remote repo (`git pull --rebase`)
 - **Session end**: copies new/changed rules, skills, and memories into the sync repo, commits, and pushes
-- **Conflict resolution**: markdown conflicts are auto-resolved by keeping both sides. Set `"interactive": true` to surface unresolved conflicts for Claude to reconcile instead.
+- **Conflict resolution**: markdown conflicts are auto-resolved by keeping both sides
 
 ### Sync repo structure
 
