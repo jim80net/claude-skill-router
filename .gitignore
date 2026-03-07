@@ -4,6 +4,7 @@ dist/
 *.tsbuildinfo
 .env
 .env.*
+.claude/settings.local.json
 
 # Prebuilt binary (downloaded by bin/install.sh, not checked in)
 bin/skill-router.bin
