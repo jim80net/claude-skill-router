@@ -9,6 +9,5 @@
   "repository": "https://github.com/jim80net/claude-skill-router",
   "license": "MIT",
   "keywords": ["skills", "memory", "semantic-search", "embeddings", "hooks"],
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }
