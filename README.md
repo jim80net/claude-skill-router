@@ -70,9 +70,9 @@ The router indexes knowledge from three locations, each at global and project sc
 
 ## Prerequisites
 
-- Node.js 20+
+No prerequisites — prebuilt binaries are available for all major platforms. No external API keys required — embeddings run locally via ONNX.
 
-No external API keys required — embeddings run locally via ONNX.
+For development, you need Node.js 20+ and pnpm.
 
 ## Installation
 
@@ -83,17 +83,16 @@ No external API keys required — embeddings run locally via ONNX.
 /plugin install claude-skill-router
 ```
 
-Dependencies are installed automatically on first session start.
+The plugin ships with prebuilt binaries. If no binary is available for your platform, it falls back to `node --import tsx` automatically.
 
 The plugin registers hooks and ships with `/claude-skill-router:sleep` and `/claude-skill-router:deep-sleep` skills.
 
-### Option B: Manual hook
+### Option B: Prebuilt binary (manual)
 
 ```bash
-# Clone and install
 git clone https://github.com/jim80net/claude-skill-router.git ~/projects/claude-skill-router
 cd ~/projects/claude-skill-router
-pnpm install
+./bin/install.sh   # downloads the right binary for your platform
 ```
 
 Add to `~/.claude/settings.json`:
@@ -107,7 +106,7 @@ Add to `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "cd ~/projects/claude-skill-router && node --import tsx src/main.ts",
+            "command": "~/projects/claude-skill-router/bin/skill-router",
             "timeout": 10
           }
         ]
@@ -116,6 +115,16 @@ Add to `~/.claude/settings.json`:
   }
 }
 ```
+
+### Option C: From source (development)
+
+```bash
+git clone https://github.com/jim80net/claude-skill-router.git ~/projects/claude-skill-router
+cd ~/projects/claude-skill-router
+pnpm install
+```
+
+The `bin/skill-router` wrapper will automatically fall back to `node --import tsx` when no prebuilt binary is present.
 
 ## Configuration (optional)
 
@@ -303,7 +312,19 @@ Analyzes past session transcripts to extract recurring patterns, preferences, an
 pnpm install      # install dependencies
 pnpm test         # run vitest (68 tests)
 pnpm tsc --noEmit # type check
+bun run build.ts  # compile standalone binary for current platform
 ```
+
+### Building for other platforms
+
+```bash
+bun run build.ts --target bun-linux-x64
+bun run build.ts --target bun-darwin-arm64
+bun run build.ts --target bun-windows-x64
+# See build.ts for all supported targets
+```
+
+Releases are automated via semantic-release on push to `main`.
 
 ## License
 
