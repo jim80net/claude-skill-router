@@ -1,5 +1,5 @@
 ---
-name: troubleshoot
+name: doctor
 description: "Diagnose and fix skill-router installation, setup, or runtime problems. Run checks on the binary, config, hooks, cache, model, and scan paths."
 queries:
   - "skill-router is not working"
@@ -12,7 +12,7 @@ queries:
   - "why is skill-router silent"
 ---
 
-# /troubleshoot — Diagnose Skill-Router Issues
+# /doctor — Diagnose Skill-Router Issues
 
 Run through a diagnostic checklist to identify why the skill-router isn't working. Execute each step in order and stop at the first failure found.
 
