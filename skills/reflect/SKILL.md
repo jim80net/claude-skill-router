@@ -66,23 +66,15 @@ For each extracted learning, determine the best format:
 
 **Rules vs memories**: Use a rule when the learning should trigger a reminder every time it's relevant (with `one-liner` for subsequent matches). Use a memory when it's informational context that's useful but doesn't need active enforcement.
 
-### 3. Deduplicate against existing content
+### 3. Search for existing related content
 
-Check what already exists:
+For each extracted learning, use the skill-router's own semantic search to find related entries. Type the learning as a natural query in your prompt — the router will surface any existing skills, rules, or memories that match.
 
-```bash
-# Existing skills
-ls ~/.claude/skills/*/SKILL.md .claude/skills/*/SKILL.md 2>/dev/null
+For each learning, one of three outcomes:
 
-# Existing rules
-ls ~/.claude/rules/*.md .claude/rules/*.md 2>/dev/null
-
-# Existing memories
-ENCODED_CWD=$(pwd | sed 's|/|-|g; s|\.|-|g')
-ls ~/.claude/projects/"$ENCODED_CWD"/memory/*.md 2>/dev/null
-```
-
-Read existing files to avoid creating duplicates. If an existing entry covers the same topic but is incomplete, **update it** rather than creating a new one.
+- **No match** → create a new entry (step 5)
+- **Match exists and is accurate** → skip, it's already covered
+- **Match exists but is incomplete or misleading** → read the existing file and update it with the new insight. Preserve what's correct, fix what's wrong, add what's missing.
 
 ### 4. Determine scope
 
