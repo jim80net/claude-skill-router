@@ -1,6 +1,6 @@
 ---
 name: deep-sleep
-description: "Extract learnings from past session transcripts and create memory-skills. Processes unreviewed sessions to find user preferences, recurring patterns, and troublesome workflows."
+description: "Extract learnings from past session transcripts and create appropriately-typed skills. Processes unreviewed sessions to find user preferences, recurring patterns, and troublesome workflows."
 queries:
   - "learn from past sessions"
   - "extract patterns from conversation history"
@@ -11,11 +11,11 @@ queries:
 
 # /deep-sleep — Extract Learnings from Session Transcripts
 
-Analyze past session transcripts to extract user preferences, recurring patterns, and troublesome workflows, then create memory-skills for future semantic injection.
+Analyze past session transcripts to extract user preferences, recurring patterns, and troublesome workflows, then create appropriately-typed skills for future semantic injection.
 
 ## When to Use
 
-- Periodically (weekly) to consolidate learnings from recent sessions
+- Daily to consolidate learnings from recent sessions
 - After a productive session where many patterns were established
 - When you notice the same corrections being made repeatedly
 
@@ -58,24 +58,47 @@ Review the collected user messages and identify reusable patterns. Look for:
 
 Skip one-off requests. Only extract clear, reusable patterns.
 
-### 4. Deduplicate against existing skills
+### 4. Deduplicate against existing knowledge
 
-Before creating new skills, check what already exists:
+For each candidate learning, use the skill-router's own semantic search to check for overlapping entries. Pipe the learning text as a `UserPromptSubmit` query:
+
 ```bash
-ls <cwd>/.claude/skills/*/SKILL.md ~/.claude/skills/*/SKILL.md 2>/dev/null
+echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"<candidate learning text>","session_id":"deep-sleep-dedup","cwd":"<cwd>"}' | $PLUGIN_ROOT/bin/skill-router
 ```
 
-Read existing skill names and descriptions. Skip any learning that substantially overlaps with an existing skill.
+If the output contains `additionalContext` with a match at relevance >= 80%, the learning is already covered. Read the matched entry to confirm — if the existing entry says the same thing, skip the candidate. If the existing entry is related but incomplete, update it instead of creating a duplicate.
 
-### 5. Create memory-skills
+This uses the same embedding-based similarity that the router uses at runtime, so dedup quality matches injection quality.
 
-For each novel learning, create a SKILL.md file:
+### 5. Classify and create entries
 
+For each novel learning, determine the right type based on how critical and universal it is:
+
+| Pattern observed | Type | Destination |
+|-----------------|------|-------------|
+| Corrected 3+ times across sessions | `rule` | `<cwd>/.claude/rules/<name>.md` with frontmatter |
+| Preference or fact stated once | `memory` | `<cwd>/.claude/skills/<name>/SKILL.md` |
+| Multi-step procedure | `skill` | `<cwd>/.claude/skills/<name>/SKILL.md` |
+| Ordered multi-step process | `workflow` | `<cwd>/.claude/skills/<name>/SKILL.md` |
+| Tool-specific guidance | `tool-guidance` | `<cwd>/.claude/skills/<name>/SKILL.md` |
+| Stop condition pattern | `stop-rule` | `<cwd>/.claude/skills/<name>/SKILL.md` |
+
+**For entries classified as rules** (corrections made 3+ times), create a rule file with full frontmatter:
+
+```yaml
+---
+name: <kebab-case-name>
+description: "<one sentence: what this rule prevents>"
+queries:
+  - "<query 1>"
+  - "<query 2>"
+  - "<query 3>"
+one-liner: "<short reminder version>"
+---
+<the full rule explanation>
 ```
-<cwd>/.claude/skills/<kebab-case-name>/SKILL.md
-```
 
-Use this format:
+**For all other types**, create a SKILL.md:
 
 ```yaml
 ---
@@ -92,13 +115,6 @@ queries:
 <the actual instruction or knowledge, 1-5 lines>
 ```
 
-Types:
-- **memory**: Preference or fact ("always use pnpm", "API key is in .env")
-- **skill**: Procedure with steps
-- **workflow**: Multi-step ordered process
-- **tool-guidance**: Tips for using a specific tool (Bash, Edit, etc.)
-- **stop-rule**: Pattern to detect in assistant responses that should trigger continuation
-
 ### 6. Update watermark
 
 Write the current ISO timestamp to the watermark file:
@@ -109,7 +125,12 @@ date -u +%Y-%m-%dT%H:%M:%SZ > ~/.claude/cache/deep-sleep-watermark
 
 ### 7. Report results
 
-Summarize what was created: number of transcripts processed, learnings found, skills created, and any duplicates skipped.
+Summarize what was created:
+- Number of transcripts processed
+- Learnings found (by type)
+- Rules created (for repeatedly-corrected patterns)
+- Skills created (for other learnings)
+- Duplicates skipped
 
 ## Options
 

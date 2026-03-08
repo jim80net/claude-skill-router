@@ -1,6 +1,7 @@
 import type { SkillIndex } from "../core/skill-index.ts";
 import type { HookInput, HookOutput, HookConfig } from "../core/types.ts";
 import { loadSession, saveSession, hasRuleBeenShown, markRuleShown } from "../core/session.ts";
+import { loadTelemetry, saveTelemetry, recordMatch } from "../core/telemetry.ts";
 
 export async function handleUserPrompt(
   input: HookInput,
@@ -26,6 +27,7 @@ export async function handleUserPrompt(
   // Read and assemble content with type-specific disclosure
   let totalChars = 0;
   const sections: string[] = [];
+  const injectedLocations: string[] = [];
   let sessionDirty = false;
 
   for (const result of results) {
@@ -67,12 +69,26 @@ export async function handleUserPrompt(
     if (totalChars + section.length > hookConfig.maxInjectedChars) break;
 
     sections.push(section);
+    injectedLocations.push(skill.location);
     totalChars += section.length;
   }
 
   // Persist session state if rules were shown for the first time
   if (sessionDirty) {
     await saveSession(session);
+  }
+
+  // Record match telemetry only for entries that were actually injected
+  if (injectedLocations.length > 0 && input.session_id) {
+    try {
+      const telemetry = await loadTelemetry();
+      for (const location of injectedLocations) {
+        recordMatch(telemetry, location, input.session_id);
+      }
+      await saveTelemetry(telemetry);
+    } catch {
+      // Telemetry is best-effort — don't fail the hook
+    }
   }
 
   if (sections.length === 0) return {};
