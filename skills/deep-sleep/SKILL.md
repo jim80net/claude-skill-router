@@ -58,19 +58,17 @@ Review the collected user messages and identify reusable patterns. Look for:
 
 Skip one-off requests. Only extract clear, reusable patterns.
 
-### 4. Deduplicate against existing skills
+### 4. Deduplicate against existing knowledge
 
-Before creating new skills, check what already exists:
+For each candidate learning, use the skill-router's own semantic search to check for overlapping entries. Pipe the learning text as a `UserPromptSubmit` query:
+
 ```bash
-ls <cwd>/.claude/skills/*/SKILL.md ~/.claude/skills/*/SKILL.md 2>/dev/null
+echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"<candidate learning text>","session_id":"deep-sleep-dedup","cwd":"<cwd>"}' | $PLUGIN_ROOT/bin/skill-router
 ```
 
-Read existing skill names and descriptions. Skip any learning that substantially overlaps with an existing skill.
+If the output contains `additionalContext` with a match at relevance >= 80%, the learning is already covered. Read the matched entry to confirm — if the existing entry says the same thing, skip the candidate. If the existing entry is related but incomplete, update it instead of creating a duplicate.
 
-Also check existing rules — a learning may already be covered by a rule:
-```bash
-ls <cwd>/.claude/rules/*.md ~/.claude/rules/*.md 2>/dev/null
-```
+This uses the same embedding-based similarity that the router uses at runtime, so dedup quality matches injection quality.
 
 ### 5. Classify and create entries
 

@@ -105,7 +105,17 @@ Read MEMORY.md and any linked topic files. Split into sections and classify:
 - **workflow**: Multi-step ordered process → migrate to skill with `type: workflow`
 - **keep**: Structural reference, navigation link, or TOC entry → stays in MEMORY.md
 
-### 5. Generate SKILL.md for each migratable section
+### 5. Deduplicate against existing knowledge
+
+Before creating new entries, check each candidate against the existing index using the skill-router's semantic search:
+
+```bash
+echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"<candidate section text>","session_id":"sleep-dedup","cwd":"<cwd>"}' | $PLUGIN_ROOT/bin/skill-router
+```
+
+If the output contains `additionalContext` with a match at relevance >= 80%, an existing entry already covers this knowledge. Read the matched entry to confirm — if it says the same thing, skip the candidate. If the existing entry is related but incomplete, update it instead of creating a duplicate.
+
+### 6. Generate SKILL.md for each migratable section
 
 For each section to migrate, create:
 
@@ -132,7 +142,7 @@ queries:
 
 Generate 5 diverse, natural queries a developer would type when they need this knowledge.
 
-### 6. Review telemetry for promotion/demotion
+### 7. Review telemetry for promotion/demotion
 
 Read `~/.claude/cache/skill-router-telemetry.json`. For each indexed entry, review its telemetry:
 
@@ -158,14 +168,14 @@ debug-tips-1             memory   12       8         5d ago        Consolidate w
 
 Execute promotions/demotions that the user approves.
 
-### 7. Clean up source files
+### 8. Clean up source files
 
 - Remove migrated sections from MEMORY.md. If empty, delete it.
 - Remove migrated sections from CLAUDE.md (leave migration comments).
 - Delete rule files that were demoted to skills.
 - Delete individual memory-skills that were consolidated.
 
-### 8. Verify
+### 9. Verify
 
 List the created/modified files and confirm everything looks correct:
 
