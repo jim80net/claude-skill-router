@@ -21,13 +21,17 @@ The skill-router indexes entries from well-known directories and matches them to
 
 **Disclosure model** — determines how matched content is shown to Claude:
 
-| Type | First match | Subsequent matches |
-|------|------------|--------------------|
-| `rule` | Full content | `one-liner` reminder only |
-| `memory` | Full content | Full content |
-| `skill` | Description teaser | Full content (via Read) |
+| Type | First match | Subsequent matches | Notes |
+|------|------------|--------------------|----|
+| `rule` | Full content | `one-liner` reminder only | Needs a good `one-liner` |
+| `memory` | Full content | Full content | Keep short (1-5 lines) |
+| `skill` | Description teaser | Full content (via Read) | Needs informative `description` |
+| `workflow` | Description teaser | Full content (via Read) | Multi-step ordered processes |
+| `tool-guidance` | Full content | Full content | Matched on PreToolUse, not user prompt |
+| `stop-rule` | Behavioral rules | — | Matched on Stop hook |
+| `session-learning` | Full content | Full content | Ephemeral, session-scoped |
 
-This means: rules need a good `one-liner`, memories should be short (they're always shown in full), and skills should have an informative `description` (it's all Claude sees until they choose to read more).
+**Telemetry**: The router tracks match counts, session counts, and timestamps for every entry. `/sleep` uses this telemetry to promote high-traffic memories to rules and demote low-traffic rules to skills. Entries created here feed into that lifecycle.
 
 ## When to Use
 
@@ -70,41 +74,40 @@ For each learning, note *why* it matters — the reasoning, not just the conclus
 
 ### 2. Classify each learning
 
-For each extracted learning, determine the best type based on the router's disclosure model:
+For each extracted learning, determine the best type based on what was observed and the router's disclosure model:
 
-| Type | When to use | Disclosure | Example |
-|------|------------|------------|---------|
-| `memory` | Short preference or fact (1-5 lines) | Always shown in full | "Use pnpm, not npm" |
-| `rule` | Guideline that needs active enforcement | Full first, then `one-liner` reminder | "Always run tests before committing" |
-| `skill` | Procedure with steps, or detailed how-to | Description teaser, then full on read | "How to debug ONNX loading issues" |
+| Pattern observed | Type | Destination |
+|-----------------|------|-------------|
+| Corrected 3+ times in this conversation | `rule` | `<scope>/.claude/rules/<name>.md` |
+| Short preference or fact (1-5 lines) | `memory` | `<scope>/.claude/skills/<name>/SKILL.md` |
+| Multi-step procedure or detailed how-to | `skill` | `<scope>/.claude/skills/<name>/SKILL.md` |
+| Ordered multi-step process | `workflow` | `<scope>/.claude/skills/<name>/SKILL.md` |
+| Tool-specific guidance (Bash, Edit, etc.) | `tool-guidance` | `<scope>/.claude/skills/<name>/SKILL.md` |
+| Gotcha or stop condition | `stop-rule` | `<scope>/.claude/skills/<name>/SKILL.md` |
 
-**Rules vs memories**: Use a rule when you want Claude to be *reminded* every time the topic comes up — the `one-liner` acts as a persistent nudge. Use a memory when the information just needs to be *available* — it's context, not a directive.
+**Rules vs memories**: Use a rule when the user corrected the same behavior multiple times — the `one-liner` acts as a persistent nudge on every future match. Use a memory when the information just needs to be *available* — it's context, not a directive.
+
+**Correction threshold**: If the user corrected the same thing 3+ times (in this conversation or cumulatively with prior sessions), it's a rule. A single correction is a memory. This is consistent with `/deep-sleep`'s classification.
 
 **When to use a skill**: Only for genuinely multi-step procedures. If it fits in 5 lines, it's a memory. If it's an imperative ("always do X"), it's a rule.
 
-### 3. Search for existing related content
+### 3. Deduplicate against existing knowledge
 
-For each extracted learning, search the directories the skill-router indexes to find existing entries that overlap. These are the scan paths:
+For each candidate learning, use the skill-router's own semantic search to check for overlapping entries. Pipe the learning text as a `UserPromptSubmit` query:
 
-| Source | Global path | Project path |
-|--------|------------|-------------|
-| Rules | `~/.claude/rules/*.md` | `<cwd>/.claude/rules/*.md` |
-| Skills | `~/.claude/skills/*/SKILL.md` | `<cwd>/.claude/skills/*/SKILL.md` |
-| Memory | `~/.claude/projects/<encoded-cwd>/memory/*.md` | — |
+```bash
+echo '{"hook_event_name":"UserPromptSubmit","user_prompt":"<candidate learning text>","session_id":"reflect-dedup","cwd":"<cwd>"}' | $PLUGIN_ROOT/bin/skill-router
+```
 
-Where `<encoded-cwd>` is the current working directory with `/` replaced by `-` and `.` replaced by `-` (e.g., `/home/user/.myproject` → `-home-user--myproject`).
+If the output contains `additionalContext` with a match at relevance >= 80%, the learning is already covered. Read the matched entry to confirm — if the existing entry says the same thing, skip the candidate. If the existing entry is related but incomplete, update it instead of creating a duplicate.
 
-**Search procedure:**
-
-1. Use **Glob** to list existing entries across these directories.
-2. **Read** the files that look related (by name or path).
-3. Compare semantically — you are the semantic engine here. Does the existing entry already cover this learning?
+This uses the same embedding-based similarity that the router uses at runtime, so dedup quality matches injection quality.
 
 For each learning, one of three outcomes:
 
 - **No match** → create a new entry (step 5)
 - **Match exists and is accurate** → skip, it's already covered
-- **Match exists but is incomplete or misleading** → update the existing file with the new insight. Preserve what's correct, fix what's wrong, add what's missing.
+- **Match exists but is incomplete or misleading** → read the existing file and update it with the new insight. Preserve what's correct, fix what's wrong, add what's missing.
 
 ### 4. Determine scope
 
@@ -160,7 +163,7 @@ keywords:
 
 The `one-liner` is critical — after the first match in a session, only this short reminder is shown. Make it actionable and specific (e.g., "Use pnpm, not npm" not "Package manager preference").
 
-#### For skills
+#### For skills, memories, workflows, and other types
 
 Create `<scope>/.claude/skills/<kebab-name>/SKILL.md`:
 
@@ -168,6 +171,7 @@ Create `<scope>/.claude/skills/<kebab-name>/SKILL.md`:
 ---
 name: <kebab-name>
 description: "<one sentence: what this does — shown as teaser until Claude reads the full skill>"
+type: <memory|skill|workflow|tool-guidance|stop-rule>
 queries:
   - "<natural query 1>"
   - "<natural query 2>"
@@ -175,10 +179,10 @@ queries:
   - "<natural query 4>"
   - "<natural query 5>"
 ---
-<The actual multi-step content>
+<The actual content>
 ```
 
-The `description` is the teaser — it's all Claude sees until choosing to read the full skill. Make it clear enough to decide relevance from the description alone.
+The `type` field controls disclosure behavior (see Context section). The `description` is the teaser for `skill` and `workflow` types — make it clear enough to decide relevance from the description alone.
 
 #### Query quality
 
@@ -205,6 +209,7 @@ Ask the user to confirm before writing, or if they passed `--dry-run`, just show
 - **Prefer updating over creating.** If an existing entry covers the same topic, extend it rather than creating a parallel entry. Two entries about the same thing split the router's attention.
 - **Keep it concise.** Memories: 1-5 lines. Rules: fit on a screen. Only create a full skill for genuinely multi-step procedures.
 - **Write for the router.** Good `queries`, `one-liner`, and `description` fields are what make the system work. A perfectly written rule that never surfaces is worthless.
+- **Trust the lifecycle.** Don't agonize over memory vs rule. Create what seems right — `/sleep` will later promote high-traffic memories to rules or demote unused rules to skills based on telemetry data.
 
 ## Options
 
