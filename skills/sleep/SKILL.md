@@ -24,7 +24,7 @@ Manage the bidirectional flow between front-of-context (always loaded: CLAUDE.md
 - When CLAUDE.md has grown with task-specific knowledge that doesn't belong at startup
 - When rules/ contains situational guidelines that should be semantically loaded instead
 - To review match telemetry and promote/demote entries based on usage patterns
-- Periodically (weekly) as knowledge hygiene
+- Daily as knowledge hygiene
 
 ## Process
 
