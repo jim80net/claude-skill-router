@@ -1,6 +1,6 @@
 {
   "name": "claude-skill-router",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Semantic skill/memory router for Claude Code — injects relevant skills per-turn via hooks",
   "license": "MIT",
   "type": "module",

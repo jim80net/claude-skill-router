@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/jim80net/claude-skill-router/compare/claude-skill-router-v1.1.0...claude-skill-router-v1.1.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* address 9 code review findings ([#18](https://github.com/jim80net/claude-skill-router/issues/18)) ([7982ab1](https://github.com/jim80net/claude-skill-router/commit/7982ab1f9fc08f77f7148bf7de221dce5ee51d95))
+
 ## [1.1.0](https://github.com/jim80net/claude-skill-router/compare/claude-skill-router-v1.0.0...claude-skill-router-v1.1.0) (2026-03-13)
 
 
