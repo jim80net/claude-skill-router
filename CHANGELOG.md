@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/jim80net/claude-skill-router/compare/claude-skill-router-v1.1.1...claude-skill-router-v1.2.0) (2026-03-14)
+
+
+### Features
+
+* reliable binary installation with checksums, no tsx fallback ([#21](https://github.com/jim80net/claude-skill-router/issues/21)) ([a27e415](https://github.com/jim80net/claude-skill-router/commit/a27e415fd2337e027d0d631b1fb7795574555e44))
+
+
+### Bug Fixes
+
+* grant code review workflow permissions to post PR comments ([#23](https://github.com/jim80net/claude-skill-router/issues/23)) ([2f55448](https://github.com/jim80net/claude-skill-router/commit/2f554489d9063f5e56d3b1e14430081d47d840f1))
+
 ## [1.1.1](https://github.com/jim80net/claude-skill-router/compare/claude-skill-router-v1.1.0...claude-skill-router-v1.1.1) (2026-03-13)
 
 
