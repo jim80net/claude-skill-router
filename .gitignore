@@ -12,3 +12,6 @@ bin/skill-router.exe
 bin/*.so*
 bin/*.dylib
 bin/*.dll
+bin/.install-*
+bin/.install.log
+bin/.installing.lock

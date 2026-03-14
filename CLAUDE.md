@@ -2,7 +2,7 @@
 
 ## Project
 
-Semantic skill/memory/rule router for Claude Code. Ships as prebuilt binaries (via `bun build --compile`), falls back to `node --import tsx` for development. No external API keys — embeddings run locally via ONNX.
+Semantic skill/memory/rule router for Claude Code. Ships as prebuilt binaries (via `bun build --compile`). No external API keys — embeddings run locally via ONNX.
 
 ## Development
 
@@ -15,7 +15,7 @@ bun run build.ts     # compile standalone binary
 
 ## Architecture
 
-- `src/core/` — Shared engine: embeddings (local ONNX), skill-index, cache, config, session, sync, project-mapping, project-registry, telemetry, file-lock, types
+- `src/core/` — Shared engine: embeddings (local ONNX), skill-index, cache, config, session, sync, project-mapping, project-registry, telemetry, file-lock, version, types
 - `src/hooks/` — Hook handlers: user-prompt, pre-tool-use, stop, pre-compact, session-start
 - `src/main.ts` — Single entry point, dispatches by `hook_event_name` from stdin JSON
 - `bin/` — Wrapper scripts (skill-router, skill-router.cmd, install.sh, sleep-schedule.sh)
@@ -51,6 +51,10 @@ When `sleepSchedule.enabled` is true in config, the SessionStart hook checks for
 
 The project registry is updated automatically on every SessionStart — each project `cwd` is recorded with a `lastSeen` timestamp.
 
+### Binary installation
+
+The wrapper scripts (`bin/skill-router`, `bin/skill-router.cmd`) download the binary synchronously on first run if missing, with SHA256 checksum verification. There is no tsx/node fallback — if the download fails, the hook outputs `{}` with a one-liner install command on stderr. Release artifacts include a `checksums.txt` generated during CI. Version updates are handled by Claude Code's plugin manager.
+
 ### Sync
 
 When `sync.enabled` is true in `~/.claude/skill-router.json`, the router syncs rules, skills, and memories via a git repo:
@@ -66,7 +70,8 @@ Native Claude Code rules support `paths:`. The router adds: `hooks:`, `keywords:
 
 ## Conventions
 
-- Production: prebuilt binary via `bun build --compile`; development: TypeScript runs directly via tsx
+- Production: prebuilt binary via `bun build --compile`; development: TypeScript runs directly via tsx (dev only, not a production fallback)
+- Version is injected at compile time via `--define process.env.SKILL_ROUTER_VERSION`; defaults to `"dev"` under tsx
 - Tests mock the `embedTexts` function to avoid loading ONNX models
 - Cache and session modules are mocked in tests to avoid filesystem side effects
 - All paths use `node:path` join + `node:os` homedir — no hardcoded absolute paths
