@@ -11,7 +11,7 @@
  *   bun run build.ts --target bun-linux-x64   # cross-compile
  */
 
-import { mkdirSync, cpSync, rmSync, symlinkSync, readlinkSync, existsSync, readdirSync } from "node:fs";
+import { mkdirSync, cpSync, rmSync, symlinkSync, readlinkSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { execSync } from "node:child_process";
 import { platform, arch } from "node:os";
@@ -130,10 +130,14 @@ Bun.write(join(SHARP_SYMLINK, "package.json"), JSON.stringify({ name: "sharp", v
 Bun.write(join(SHARP_SYMLINK, "index.js"), "module.exports = {};");
 
 try {
-  // 2. Compile
+  // 2. Compile (inject version at compile time via --define)
+  const pkgVersion = JSON.parse(readFileSync("package.json", "utf-8")).version;
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, platConfig.binaryName);
-  const args = ["build", "--compile", "src/main.ts", "--outfile", outFile];
+  const args = [
+    "build", "--compile", "src/main.ts", "--outfile", outFile,
+    "--define", `process.env.SKILL_ROUTER_VERSION='"${pkgVersion}"'`,
+  ];
   if (targetFlag) {
     args.push("--target", targetFlag);
   }

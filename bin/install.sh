@@ -35,7 +35,7 @@ detect_platform() {
 }
 
 PLATFORM="$(detect_platform)"
-echo "Detected platform: $PLATFORM"
+echo "Detected platform: $PLATFORM" >&2
 
 if [ "$PLATFORM_OS" = "win32" ]; then
   ASSET="skill-router-${PLATFORM}.zip"
@@ -44,31 +44,62 @@ else
 fi
 
 if [ "$VERSION" = "latest" ]; then
-  URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
+  BASE_URL="https://github.com/${REPO}/releases/latest/download"
 else
-  URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET}"
+  BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 fi
 
-echo "Downloading $URL..."
+URL="${BASE_URL}/${ASSET}"
+CHECKSUM_URL="${BASE_URL}/checksums.txt"
+
+# Download helper with 12-second timeout (fits within hook's 15s timeout)
+download() {
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL --max-time 12 -o "$2" "$1"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --timeout=12 -O "$2" "$1"
+  else
+    echo "Neither curl nor wget found. Install one and retry." >&2
+    exit 1
+  fi
+}
+
+echo "Downloading $URL..." >&2
 TMPFILE="$(mktemp)"
 trap 'rm -f "$TMPFILE"' EXIT
+download "$URL" "$TMPFILE"
 
-if command -v curl >/dev/null 2>&1; then
-  curl -fSL -o "$TMPFILE" "$URL"
-elif command -v wget >/dev/null 2>&1; then
-  wget -q -O "$TMPFILE" "$URL"
+# Verify checksum (best-effort — older releases may lack checksums.txt)
+CHECKSUM_FILE="$(mktemp)"
+trap 'rm -f "$TMPFILE" "$CHECKSUM_FILE"' EXIT
+if download "$CHECKSUM_URL" "$CHECKSUM_FILE" 2>/dev/null; then
+  EXPECTED_HASH="$(grep "  ${ASSET}$" "$CHECKSUM_FILE" | cut -d' ' -f1)"
+  if [ -n "$EXPECTED_HASH" ]; then
+    if command -v sha256sum >/dev/null 2>&1; then
+      ACTUAL_HASH="$(sha256sum "$TMPFILE" | cut -d' ' -f1)"
+    elif command -v shasum >/dev/null 2>&1; then
+      ACTUAL_HASH="$(shasum -a 256 "$TMPFILE" | cut -d' ' -f1)"
+    else
+      ACTUAL_HASH=""
+      echo "Warning: no sha256sum or shasum available, skipping checksum verification" >&2
+    fi
+    if [ -n "$ACTUAL_HASH" ] && [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+      echo "Checksum mismatch! Expected $EXPECTED_HASH, got $ACTUAL_HASH" >&2
+      exit 1
+    fi
+    echo "Checksum verified." >&2
+  fi
 else
-  echo "Neither curl nor wget found. Install one and retry." >&2
-  exit 1
+  echo "Warning: checksums.txt not available, skipping verification" >&2
 fi
 
-# Extract to a temp directory first to avoid overwriting the wrapper script.
+# Extract to a temp directory under $DIR for atomic same-filesystem mv.
 # The tarball contains a file named "skill-router" (the binary) which would
 # clobber bin/skill-router (the shell wrapper) if extracted directly into $DIR.
-EXTRACT_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMPFILE" "$EXTRACT_DIR"' EXIT
+EXTRACT_DIR="$(mktemp -d "$DIR/.install-XXXXXX")"
+trap 'rm -rf "$TMPFILE" "$CHECKSUM_FILE" "$EXTRACT_DIR"' EXIT
 
-echo "Extracting to $DIR..."
+echo "Extracting to $DIR..." >&2
 case "$ASSET" in
   *.tar.gz) tar -xzf "$TMPFILE" -C "$EXTRACT_DIR" ;;
   *.zip)    unzip -o "$TMPFILE" -d "$EXTRACT_DIR" ;;
@@ -88,4 +119,4 @@ for lib in "$EXTRACT_DIR"/*.so* "$EXTRACT_DIR"/*.dylib "$EXTRACT_DIR"/*.dll; do
   [ -f "$lib" ] && cp "$lib" "$DIR/"
 done
 
-echo "Installed skill-router ($PLATFORM) to $DIR"
+echo "Installed skill-router ($PLATFORM) version ${VERSION} to $DIR" >&2

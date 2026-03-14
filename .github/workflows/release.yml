@@ -73,6 +73,10 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Generate checksums
+        working-directory: artifacts
+        run: sha256sum * > checksums.txt
+
       - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
