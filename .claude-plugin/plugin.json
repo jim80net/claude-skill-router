@@ -1,6 +1,6 @@
 {
   "name": "claude-skill-router",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Semantic skill/memory router — injects relevant skills per-turn using embedding similarity",
   "author": {
     "name": "Jim Park",
