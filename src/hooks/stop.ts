@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { SkillIndex } from "@jim80net/memex-core";
 import type { HookInput, SyncConfig } from "@jim80net/memex-core";
-import { syncCommitAndPush, encodeProjectPath } from "@jim80net/memex-core";
+import { syncCommitAndPush } from "@jim80net/memex-core";
 import type { StopHookConfig } from "../core/config.ts";
 import { getClaudePaths, getProjectMemoryDir } from "../core/paths.ts";
+
 
 export async function handleStop(
   input: HookInput,
@@ -62,8 +62,8 @@ export async function handleStop(
         syncConfig,
         paths.syncRepoDir,
         {
-          rules: join(paths.cacheDir, "..", "rules"),
-          skills: join(paths.cacheDir, "..", "skills"),
+          rules: paths.globalRulesDir,
+          skills: paths.globalSkillsDir,
           projectMemoryDir: getProjectMemoryDir(cwd, paths.projectsDir),
         },
         cwd,

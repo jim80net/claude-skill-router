@@ -1,6 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { homedir } from "node:os";
 import type { MemexCoreConfig, SyncConfig } from "@jim80net/memex-core";
 import { DEFAULT_CORE_CONFIG } from "@jim80net/memex-core";
 
@@ -85,7 +83,8 @@ export const DEFAULT_CONFIG: SkillRouterConfig = {
 };
 
 export async function loadConfig(): Promise<SkillRouterConfig> {
-  const configPath = join(homedir(), ".claude", "memex.json");
+  const { getClaudePaths } = await import("./paths.ts");
+  const configPath = getClaudePaths().configPath;
   try {
     const raw = await readFile(configPath, "utf-8");
     const user = JSON.parse(raw) as Partial<SkillRouterConfig>;

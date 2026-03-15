@@ -12,8 +12,6 @@ import {
   getClaudePaths,
   getProjectMemoryDir,
   getProjectSkillsDir,
-  getGlobalSkillsDir,
-  getGlobalRulesDir,
   getProjectRulesDir,
 } from "./core/paths.ts";
 import { handleUserPrompt } from "./hooks/user-prompt.ts";
@@ -57,9 +55,9 @@ async function main(): Promise<void> {
 
   // Build scan dirs from claude-specific paths
   const scanDirs: ScanDirs = {
-    skillDirs: [getGlobalSkillsDir(), getProjectSkillsDir(cwd), ...config.skillDirs],
+    skillDirs: [paths.globalSkillsDir, getProjectSkillsDir(cwd), ...config.skillDirs],
     memoryDirs: [getProjectMemoryDir(cwd, paths.projectsDir)],
-    ruleDirs: [getGlobalRulesDir(), getProjectRulesDir(cwd)],
+    ruleDirs: [paths.globalRulesDir, getProjectRulesDir(cwd)],
   };
 
   // Add sync repo scan paths if sync is enabled

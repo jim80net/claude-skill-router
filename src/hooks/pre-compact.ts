@@ -1,12 +1,13 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { homedir } from "node:os";
 import type { HookInput } from "@jim80net/memex-core";
+import { getClaudePaths } from "../core/paths.ts";
 
 export async function handlePreCompact(input: HookInput): Promise<void> {
   if (!input.transcript_path) return;
 
-  const stagingDir = join(homedir(), ".claude", "cache", "pre-compact");
+  const paths = getClaudePaths();
+  const stagingDir = paths.preCompactDir;
   const stagingFile = join(stagingDir, `${input.session_id || "unknown"}.md`);
 
   try {

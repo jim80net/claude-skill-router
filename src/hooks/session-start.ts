@@ -1,6 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { homedir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomBytes } from "node:crypto";
@@ -12,7 +11,6 @@ import { getClaudePaths } from "../core/paths.ts";
 
 const execFileAsync = promisify(execFile);
 
-const CRON_WATERMARK_PATH = join(homedir(), ".claude", "cache", "memex-cron-watermark");
 const CRON_MARKER = "memex-sleep";
 
 function getPluginRoot(): string {
@@ -66,7 +64,7 @@ export async function handleSessionStart(
 
 async function hasBeenPrompted(): Promise<boolean> {
   try {
-    await readFile(CRON_WATERMARK_PATH, "utf-8");
+    await readFile(getClaudePaths().cronWatermarkPath, "utf-8");
     return true;
   } catch {
     return false;
@@ -84,11 +82,11 @@ async function hasCronEntry(): Promise<boolean> {
 
 async function writeCronWatermark(): Promise<void> {
   try {
-    const dir = dirname(CRON_WATERMARK_PATH);
-    await mkdir(dir, { recursive: true });
-    const tmpPath = CRON_WATERMARK_PATH + "." + randomBytes(4).toString("hex") + ".tmp";
+    const watermarkPath = getClaudePaths().cronWatermarkPath;
+    await mkdir(dirname(watermarkPath), { recursive: true });
+    const tmpPath = watermarkPath + "." + randomBytes(4).toString("hex") + ".tmp";
     await writeFile(tmpPath, new Date().toISOString(), "utf-8");
-    await rename(tmpPath, CRON_WATERMARK_PATH);
+    await rename(tmpPath, watermarkPath);
   } catch {
     // Best-effort
   }

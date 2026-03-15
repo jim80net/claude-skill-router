@@ -27,16 +27,24 @@ vi.mock("@jim80net/memex-core", async (importOriginal) => {
 
 // Mock paths
 vi.mock("../src/core/paths.ts", () => ({
-  getClaudePaths: () => ({
-    cacheDir: join(tmpdir(), "fake-test-home-session-start", ".claude", "cache"),
-    modelsDir: "/fake/models",
-    sessionsDir: "/fake/sessions",
-    syncRepoDir: "/fake/sync",
-    projectsDir: "/fake/projects",
-    telemetryPath: "/fake/telemetry.json",
-    registryPath: "/fake/registry.json",
-    tracesDir: "/fake/traces",
-  }),
+  getClaudePaths: () => {
+    const fakeCache = join(tmpdir(), "fake-test-home-session-start", ".claude", "cache");
+    return {
+      cacheDir: fakeCache,
+      modelsDir: "/fake/models",
+      sessionsDir: "/fake/sessions",
+      syncRepoDir: "/fake/sync",
+      projectsDir: "/fake/projects",
+      telemetryPath: "/fake/telemetry.json",
+      registryPath: "/fake/registry.json",
+      tracesDir: "/fake/traces",
+      configPath: "/fake/memex.json",
+      preCompactDir: join(fakeCache, "pre-compact"),
+      cronWatermarkPath: join(fakeCache, "memex-cron-watermark"),
+      globalSkillsDir: "/fake/skills",
+      globalRulesDir: "/fake/rules",
+    };
+  },
 }));
 
 // Mock execFile for crontab checks
