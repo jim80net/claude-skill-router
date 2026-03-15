@@ -7,6 +7,9 @@ dependencies:
   '@huggingface/transformers':
     specifier: ^3.8.1
     version: 3.8.1
+  '@jim80net/memex-core':
+    specifier: link:../memex-core
+    version: link:../memex-core
 
 devDependencies:
   '@types/node':

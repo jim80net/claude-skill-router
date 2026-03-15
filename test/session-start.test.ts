@@ -3,7 +3,8 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { handleSessionStart } from "../src/hooks/session-start.ts";
-import type { HookInput, SyncConfig, SleepScheduleConfig } from "../src/core/types.ts";
+import type { HookInput, SyncConfig } from "@jim80net/memex-core";
+import type { SleepScheduleConfig } from "../src/core/config.ts";
 
 // Mock homedir
 vi.mock("node:os", async (importOriginal) => {
@@ -11,16 +12,31 @@ vi.mock("node:os", async (importOriginal) => {
   return { ...original, homedir: () => join(tmpdir(), "fake-test-home-session-start") };
 });
 
-// Mock sync to avoid git operations
-vi.mock("../src/core/sync.ts", () => ({
-  syncPull: vi.fn().mockResolvedValue("mocked"),
-}));
+// Mock memex-core functions
+vi.mock("@jim80net/memex-core", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@jim80net/memex-core")>();
+  return {
+    ...original,
+    syncPull: vi.fn().mockResolvedValue("mocked"),
+    loadRegistry: vi.fn().mockResolvedValue({ version: 1, projects: {} }),
+    saveRegistry: vi.fn().mockResolvedValue(undefined),
+    registerProject: vi.fn(),
+    withFileLock: vi.fn(async (_path: string, fn: () => Promise<unknown>) => fn()),
+  };
+});
 
-// Mock project registry
-vi.mock("../src/core/project-registry.ts", () => ({
-  loadRegistry: vi.fn().mockResolvedValue({ version: 1, projects: {} }),
-  saveRegistry: vi.fn().mockResolvedValue(undefined),
-  registerProject: vi.fn(),
+// Mock paths
+vi.mock("../src/core/paths.ts", () => ({
+  getClaudePaths: () => ({
+    cacheDir: join(tmpdir(), "fake-test-home-session-start", ".claude", "cache"),
+    modelsDir: "/fake/models",
+    sessionsDir: "/fake/sessions",
+    syncRepoDir: "/fake/sync",
+    projectsDir: "/fake/projects",
+    telemetryPath: "/fake/telemetry.json",
+    registryPath: "/fake/registry.json",
+    tracesDir: "/fake/traces",
+  }),
 }));
 
 // Mock execFile for crontab checks
@@ -29,7 +45,6 @@ vi.mock("node:child_process", async (importOriginal) => {
   return {
     ...original,
     execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-      // Simulate empty crontab
       cb(new Error("no crontab"), "", "");
     }),
   };
@@ -64,7 +79,6 @@ const SLEEP_ENABLED: SleepScheduleConfig = {
 describe("handleSessionStart", () => {
   const fakeHome = join(tmpdir(), "fake-test-home-session-start");
 
-  // Suppress stderr
   const origStderr = process.stderr.write;
   beforeEach(async () => {
     process.stderr.write = vi.fn() as any;
@@ -81,7 +95,7 @@ describe("handleSessionStart", () => {
   });
 
   it("registers project on every session start", async () => {
-    const { registerProject } = await import("../src/core/project-registry.ts");
+    const { registerProject } = await import("@jim80net/memex-core");
     (registerProject as ReturnType<typeof vi.fn>).mockClear();
 
     await handleSessionStart(BASE_INPUT, SYNC_DISABLED, SLEEP_DISABLED);
@@ -105,12 +119,10 @@ describe("handleSessionStart", () => {
     const result = await handleSessionStart(BASE_INPUT, SYNC_DISABLED, malformed);
 
     expect(result.additionalContext).toBeDefined();
-    // Should fall back to "0 3 * * *"
     expect(result.additionalContext).toContain("0 3 * * *");
   });
 
   it("skips cron prompt when watermark is fresh", async () => {
-    // Write a fresh watermark
     const watermarkPath = join(fakeHome, ".claude", "cache", "skill-router-cron-watermark");
     await writeFile(watermarkPath, new Date().toISOString(), "utf-8");
 

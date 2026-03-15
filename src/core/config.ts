@@ -1,12 +1,49 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import type { SkillRouterConfig } from "./types.ts";
+import type { MemexCoreConfig, SyncConfig } from "@jim80net/memex-core";
+import { DEFAULT_CORE_CONFIG } from "@jim80net/memex-core";
+
+// ---------------------------------------------------------------------------
+// Claude-specific config types (extend core)
+// ---------------------------------------------------------------------------
+
+export type HookConfig = {
+  enabled: boolean;
+  topK: number;
+  threshold: number;
+  maxInjectedChars: number;
+  types: import("@jim80net/memex-core").SkillType[];
+};
+
+export type StopHookConfig = {
+  enabled: boolean;
+  extractLearnings: boolean;
+  extractionModel: string;
+  behavioralRules: boolean;
+};
+
+export type SleepScheduleConfig = {
+  enabled: boolean;
+  dailyAt: string;
+  projects: string[];
+};
+
+export type SkillRouterConfig = MemexCoreConfig & {
+  skillDirs: string[];
+  sync: SyncConfig;
+  sleepSchedule: SleepScheduleConfig;
+  hooks: {
+    UserPromptSubmit: HookConfig;
+    PreToolUse: HookConfig;
+    Stop: StopHookConfig;
+    PreCompact: { enabled: boolean };
+  };
+};
 
 export const DEFAULT_CONFIG: SkillRouterConfig = {
+  ...DEFAULT_CORE_CONFIG,
   enabled: true,
-  embeddingModel: "Xenova/all-MiniLM-L6-v2",
-  cacheTimeMs: 300_000, // 5 min
   skillDirs: [],
   sync: {
     enabled: false,

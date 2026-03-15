@@ -2,12 +2,12 @@
 
 ## Project
 
-Semantic skill/memory/rule router for Claude Code. Ships as prebuilt binaries (via `bun build --compile`). No external API keys — embeddings run locally via ONNX.
+Claude Code hooks integration for the memex skill/memory/rule router. Ships as prebuilt binaries (via `bun build --compile`). Core engine lives in `@jim80net/memex-core`.
 
 ## Development
 
 ```bash
-pnpm install         # install deps
+pnpm install         # install deps (memex-core linked from ../memex-core)
 pnpm test            # run vitest
 pnpm tsc --noEmit    # type check
 bun run build.ts     # compile standalone binary
@@ -15,13 +15,17 @@ bun run build.ts     # compile standalone binary
 
 ## Architecture
 
-- `src/core/` — Shared engine: embeddings (local ONNX), skill-index, cache, config, session, sync, project-mapping, project-registry, telemetry, file-lock, version, types
+- `@jim80net/memex-core` — Shared engine (separate repo): embeddings (ONNX + OpenAI), skill-index, cache, config, session, telemetry, sync, project-mapping, project-registry, file-lock, traces, types
+- `src/core/` — Claude-specific wrappers:
+  - `paths.ts` — Claude path configuration (`~/.claude/...`)
+  - `config.ts` — Extends `MemexCoreConfig` with hook-specific config, sync, sleep schedule
+  - `session.ts` — File-based session persistence (wraps core's `SessionTracker` interface)
 - `src/hooks/` — Hook handlers: user-prompt, pre-tool-use, stop, pre-compact, session-start
-- `src/main.ts` — Single entry point, dispatches by `hook_event_name` from stdin JSON
+- `src/main.ts` — Entry point: constructs `SkillIndex`, `LocalEmbeddingProvider`, `ScanDirs`, dispatches by `hook_event_name`
 - `bin/` — Wrapper scripts (skill-router, skill-router.cmd, install.sh, sleep-schedule.sh)
 - `build.ts` — Build script: compiles standalone binary via bun, stubs sharp, bundles ONNX
 - `skills/` — Bundled skill definitions (sleep, deep-sleep, doctor, handoff, takeover)
-- `test/` — Vitest tests mirroring src/ structure
+- `test/` — Vitest tests for hook handlers and claude-specific modules
 
 ### Scan sources
 
@@ -71,9 +75,9 @@ Native Claude Code rules support `paths:`. The router adds: `hooks:`, `keywords:
 ## Conventions
 
 - Production: prebuilt binary via `bun build --compile`; development: TypeScript runs directly via tsx (dev only, not a production fallback)
-- Version is injected at compile time via `--define process.env.SKILL_ROUTER_VERSION`; defaults to `"dev"` under tsx
-- Tests mock the `embedTexts` function to avoid loading ONNX models
-- Cache and session modules are mocked in tests to avoid filesystem side effects
-- All paths use `node:path` join + `node:os` homedir — no hardcoded absolute paths
-- File writes to shared state (telemetry, session, registry) use advisory file locks (`src/core/file-lock.ts`) for concurrency safety
+- Core engine (`@jim80net/memex-core`) is a separate npm package — all shared types, embeddings, indexing, caching live there
+- `src/core/` contains only claude-specific code: path config, file-based session, extended config
+- Tests mock `@jim80net/memex-core` functions (telemetry, sync, etc.) to avoid filesystem side effects
+- All Claude-specific paths are centralized in `src/core/paths.ts`
+- File writes to shared state (telemetry, session, registry) use advisory file locks from `@jim80net/memex-core`
 - All 5 hook events are registered in `hooks/hooks.json`; per-hook `enabled` config controls activation

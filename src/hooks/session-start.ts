@@ -5,39 +5,36 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { syncPull } from "../core/sync.ts";
-import { loadRegistry, saveRegistry, registerProject } from "../core/project-registry.ts";
-import type { HookInput, HookOutput, SyncConfig, SleepScheduleConfig } from "../core/types.ts";
+import { syncPull, loadRegistry, saveRegistry, registerProject, withFileLock } from "@jim80net/memex-core";
+import type { HookInput, HookOutput, SyncConfig } from "@jim80net/memex-core";
+import type { SleepScheduleConfig } from "../core/config.ts";
+import { getClaudePaths } from "../core/paths.ts";
 
 const execFileAsync = promisify(execFile);
 
 const CRON_WATERMARK_PATH = join(homedir(), ".claude", "cache", "skill-router-cron-watermark");
 const CRON_MARKER = "skill-router-sleep";
 
-/** Resolve the plugin root from this file's location (src/hooks/session-start.ts → root). */
 function getPluginRoot(): string {
   const thisFile = fileURLToPath(import.meta.url);
   return join(dirname(thisFile), "..", "..");
 }
 
-/**
- * SessionStart hook:
- * 1. Register project in known-projects registry
- * 2. Pull latest content from sync remote
- * 3. Check if sleep schedule cron needs setup
- */
 export async function handleSessionStart(
   input: HookInput,
   syncConfig: SyncConfig,
   sleepConfig: SleepScheduleConfig
 ): Promise<HookOutput> {
   const cwd = input.cwd || process.cwd();
+  const paths = getClaudePaths();
 
   // 1. Register this project
   try {
-    const registry = await loadRegistry();
-    registerProject(registry, cwd);
-    await saveRegistry(registry);
+    await withFileLock(paths.registryPath, async () => {
+      const registry = await loadRegistry(paths.registryPath);
+      registerProject(registry, cwd);
+      await saveRegistry(paths.registryPath, registry);
+    });
   } catch {
     // Best-effort
   }
@@ -45,7 +42,7 @@ export async function handleSessionStart(
   // 2. Sync pull
   if (syncConfig.enabled && syncConfig.autoPull) {
     try {
-      const result = await syncPull(syncConfig);
+      const result = await syncPull(syncConfig, paths.syncRepoDir);
       process.stderr.write(`skill-router[sync]: ${result}\n`);
     } catch (err) {
       process.stderr.write(`skill-router[sync]: pull failed: ${err}\n`);
@@ -61,16 +58,12 @@ export async function handleSessionStart(
         additionalContext: buildCronSetupInstructions(sleepConfig),
       };
     }
-    // Cron exists, mark as prompted so we don't check crontab every session
     await writeCronWatermark();
   }
 
   return {};
 }
 
-/**
- * Check if we've already prompted the user about cron setup.
- */
 async function hasBeenPrompted(): Promise<boolean> {
   try {
     await readFile(CRON_WATERMARK_PATH, "utf-8");
@@ -80,21 +73,15 @@ async function hasBeenPrompted(): Promise<boolean> {
   }
 }
 
-/**
- * Check if the system crontab already has our entry.
- */
 async function hasCronEntry(): Promise<boolean> {
   try {
     const { stdout } = await execFileAsync("crontab", ["-l"], { timeout: 5000 });
     return stdout.includes(CRON_MARKER);
   } catch {
-    return false; // No crontab or crontab not available
+    return false;
   }
 }
 
-/**
- * Write the cron watermark to avoid re-prompting.
- */
 async function writeCronWatermark(): Promise<void> {
   try {
     const dir = dirname(CRON_WATERMARK_PATH);
@@ -107,9 +94,6 @@ async function writeCronWatermark(): Promise<void> {
   }
 }
 
-/**
- * Build instructions for Claude to set up the system crontab entry.
- */
 function buildCronSetupInstructions(config: SleepScheduleConfig): string {
   const [hour, minute] = config.dailyAt.split(":").map(Number);
   const h = isNaN(hour) ? 3 : hour;

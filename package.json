@@ -16,7 +16,8 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1"
+    "@huggingface/transformers": "^3.8.1",
+    "@jim80net/memex-core": "link:../memex-core"
   },
   "packageManager": "pnpm@8.3.1",
   "pnpm": {
